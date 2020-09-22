@@ -10,7 +10,7 @@ class Zenegal_API_Client
         $this->http = new GuzzleHttp\Client([
             'base_uri' => 'https://api.zenegal.store/v1/',
             'headers' => [
-                'X-API-KEY' => 'D44C7FDB-3122-4B7B-9F25-61C935F3678F'
+                'X-API-KEY' => ''
             ]
 
         ]);

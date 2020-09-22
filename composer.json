@@ -6,10 +6,6 @@
   "license": "GPL-3.0+",
   "require": {
     "automattic/woocommerce": "^1.3",
-    "guzzlehttp/guzzle": "^7.0",
-    "phpunit/phpunit": "^9.3"
-  },
-  "scripts": {
-    "test": "./vendor/bin/phpunit"
+    "guzzlehttp/guzzle": "^7.0"
   }
 }

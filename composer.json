@@ -1,11 +1,12 @@
 {
-  "name": "WPprodigy/woocommerce-external-product-embed",
+  "name": "odoo-lk/lcy-product-fetcher",
   "description": "Provides a shortcode to embed products from another store.",
   "homepage": "https://calebburks.com/plugins/",
   "type": "wordpress-plugin",
   "license": "GPL-3.0+",
   "require": {
     "automattic/woocommerce": "^1.3",
-    "guzzlehttp/guzzle": "^7.0"
+    "guzzlehttp/guzzle": "^7.0",
+    "symfony/dotenv": "^5.1"
   }
 }

@@ -7,6 +7,7 @@ project.properties
 .settings*
 .idea
 .env
+composer.lock
 
 # OS X metadata
 .DS_Store

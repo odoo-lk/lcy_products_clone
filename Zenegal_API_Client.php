@@ -1,8 +1,8 @@
 <?php
 require  __DIR__.'/vendor/autoload.php';
 use Automattic\WooCommerce\Client as Wooclient;
-
-use function GuzzleHttp\json_decode;
+use GuzzleHttp\Client as GuzzleClient;
+use Symfony\Component\Dotenv\Dotenv;
 
 class Zenegal_API_Client
 {
@@ -10,17 +10,21 @@ class Zenegal_API_Client
 
     public function __construct()
     {
-        $this->http = new GuzzleHttp\Client([
-            'base_uri' => getenv('REMOTE_API'),
+
+        $dotenv = new Dotenv();
+        $dotenv->loadEnv(__DIR__.'/.env');
+        
+        $this->http = new GuzzleClient([
+            'base_uri' => $_ENV['REMOTE_API'],
             'headers' => [
-                'X-API-KEY' => getenv('REMOTE_SECRET_KEY')
+                'X-API-KEY' => $_ENV['REMOTE_SECRET_KEY']
             ]
 
         ]);
         $this->wc_api = new Wooclient(
-            getenv('WP_SERVER'),
-            getenv('WP_CLIENT_KEY'),
-            getenv('WP_CLIENT_SECRET'),
+            $_ENV['WP_SERVER'],
+            $_ENV['WP_CLIENT_KEY'],
+            $_ENV['WP_CLIENT_SECRET'],
             [
                 'wp_api' => true,
                 'version' => 'wc/v3',

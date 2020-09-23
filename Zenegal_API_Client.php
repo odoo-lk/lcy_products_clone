@@ -26,8 +26,7 @@ class Zenegal_API_Client
                 'headers' => [
                     "Content-Type" => "application/json"
                 ]
-            ],
-
+            ]
         );
 
         $this->cdn = 'https://cdn.zenegal.store';

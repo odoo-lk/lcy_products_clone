@@ -2,6 +2,8 @@
 require  __DIR__.'/vendor/autoload.php';
 use Automattic\WooCommerce\Client as Wooclient;
 
+use function GuzzleHttp\json_decode;
+
 class Zenegal_API_Client
 {
 
@@ -15,7 +17,6 @@ class Zenegal_API_Client
             ]
 
         ]);
-
         $this->wc_api = new Wooclient(
             getenv('WP_SERVER'),
             getenv('WP_CLIENT_KEY'),
@@ -66,17 +67,28 @@ class Zenegal_API_Client
             $contents = array_merge($contents,$this->getAllProducts(3)) ;
             echo ('Total products to import:'. count($contents)."\r\n");
             foreach ($contents as $product) {
+                // var_dump($this->getProductOptions($product));
                 $category = $this->getCategoryId($product);
                 $newProduct = $this->getProduct($product);
                 if (!is_null($newProduct)) {       
-                    $wp_product['stock_status'] =  $product['listing']['stock_status']['code'] === 'in_stock' ? 'in_stock' : 'outofstock';
+                    $wp_product['stock_status'] =  $product['listing']['stock_status']['code'] =='in_stock' ? 'instock' : 'outofstock';
+                    $wp_product['purchasable'] =   $product['listing']['is_purchasable'] ;
                     $wp_product['slug'] =  $product['listing']['slug'];
                     $wp_product['images'] = [$this->setImageURI( $product['listing']['image'],$product['listing']['name'])];
+                    $wp_product['type'] = 'variable';
+                    $wp_product['manage_stock'] = $product['listing']['is_purchasable'];
+                    $wp_product['attributes'] = $this->getProductOptions($product);
+                    $this->createOrUpdateProductVariant($product,$newProduct);
                     echo ('Updated:'.$product['listing']['name']."\r\n");
+                    if($product['listing']['is_purchasable']){
+                        echo 'available for purchas'. $wp_product['name'];
+                    }
                 } else {
                     $data = [
                         'name' => $product['listing']['name'],
-                        'type' => 'simple',
+                        'type' => 'variable',
+                        'purchasable' =>   $product['listing']['is_purchasable'] ,
+                        'manage_stock' => $product['listing']['is_purchasable'],
                         'description' => $product['listing']['name'],
                         'short_description' => $product['listing']['name'],
                         'categories' => [
@@ -84,11 +96,14 @@ class Zenegal_API_Client
                                 'id' => $category['id']
                             ]
                         ],
+                        'attributes' =>  $this->getProductOptions($product),
                         'images' => [$this->setImageURI($product['listing']['image'],$product['listing']['name'])],
-                        'stock_status' => $product['listing']['stock_status']['code'] === 'in_stock' ? 'instock' : 'outofstock',
+                        'stock_status' => $product['listing']['stock_status']['code'] == 'in_stock' ? 'instock' : 'outofstock',
                         'slug' => $product['listing']['slug'],
                         ];
-                        $this->wc_api->post('products', $data);
+                        
+                        $data = $this->wc_api->post('products', $data);
+                        $this->createOrUpdateProductVariant($product,$data);
                         echo ('Imported:'.$product['listing']['name']."\r\n");
                 }
             }
@@ -97,9 +112,94 @@ class Zenegal_API_Client
         }
     }  
 
+    public function getProductOptions($product){
+        $data = [
+            "option_group_id" => null,
+            "options" => []
+        ];
+        $attributes =  $this->http->post('products/'.$product['listing']['store_based_id'].'/options',$data);
+        $attributes = (string) $attributes->getBody();
+        $attributes =  (array) json_decode($attributes, true)['options'];
+
+        $data = array();
+        foreach($attributes as $attribute){
+            $option  = [
+                'name' => $attribute['name'],
+                'options' => array_column($attribute['options'],'name'),
+                'visible' => true,
+                'variation' => true
+            ];
+            $data[] = $option;
+        }
+        return $data;
+    }
+
+    public function createOrUpdateProductVariant($product,$wp_product){
+        $variants = array();
+        foreach($product['details']['variants'] as $variant){
+            $value = explode('-',$variant['name']);
+            $data = [
+                'name' => $variant['name'],
+                'image' => [$this->setImageURI($variant['image'],$variant['name'])],
+                'purchasable' => $variant['is_purchasable']  ? true : false,
+                'stock_status' =>  $variant['is_purchasable']  ? 'instock' : 'outofstock',
+                "visible" => true,
+                'attributes'    => [
+                    [
+                        'name'     => 'Colour',
+                        'option'=> trim($value[1]),
+                        'visible' => true
+                    ],
+                    [
+                        'name'     => 'Size',
+                        'option'=> trim($value[0]),
+                        'visible' => true 
+                    ],
+                ],
+                ];
+               try{
+                   if($variant['is_purchasable']){
+                       echo 'available:'.  $wp_product['name'].',Variant:'. $variant['name']." updated\r\n";
+                   }
+                    echo  $wp_product['name'].',Variant:'. $variant['name']." updated\r\n";
+                    $this->wc_api->post('products/'.$wp_product['id'].'/variations',$data);
+               }catch(\Exception $e){
+                   echo ($e->getMessage()."\r\n");
+                   echo $variant['regular_price'];
+               }
+        }  
+    }
+
+    public function getProductVariant($product){
+        try {
+            $variants =  $this->wc_api->get('products/'.$product['id']);//$this->wc_api->get('products/'.$product['id'].'/variations');
+            // var_dump($variants['variations']);
+            if(count($variants) > 0){
+                var_dump($variants);
+            }
+        } catch (\Exception $e) {
+        }
+    }
+
+    public function getAttributeId($slug)
+    {
+        try {
+            $category = null;
+            $categories = $this->wc_api->get('products/attributes');
+            foreach ($categories as $key => $category) {
+                if ($category['slug'] ==  $slug) {
+                    $category = $category;
+                    return $category;
+                };
+            }
+        } catch (\Exception $e) {
+        }
+    }
+
+
     public function setImageURI($images,$name){
         $new_images = [
-                'src' => $this->cdn.$images['original'],
+                'src' => $images ?  $this->cdn.$images['original'] : '' ,
                 'name' => $name
         ];
         return $new_images;
@@ -110,7 +210,7 @@ class Zenegal_API_Client
     {
        echo('start fetch:' .$category . "\r\n");
        try{
-        $results = $this->http->get('products/search?limit=10&category='.$category);
+        $results = $this->http->get('products/search?limit=10&source=details.variants&category='.$category);
         $contents = (string) $results->getBody();
         $contents = (array) json_decode($contents, true);
         $total_pages =  $contents['pages'];
@@ -119,7 +219,7 @@ class Zenegal_API_Client
         do{
             $total_pages -= 1;
             $page += 1;
-            $results = $this->http->get('products/search?limit=10category='.$category.'&page='.$page);
+            $results = $this->http->get('products/search?limit=10&source=details.variants&category='.$category.'&page='.$page);
             $contents = (string) $results->getBody();
             $newProducts = (array) json_decode($contents, true)['data'];
             $products = array_merge($products,$newProducts);

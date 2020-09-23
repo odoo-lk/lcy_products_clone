@@ -76,8 +76,6 @@ class Zenegal_API_Client
                     $wp_product['slug'] =  $product['listing']['slug'];
                     $wp_product['images'] = [$this->setImageURI( $product['listing']['image'],$product['listing']['name'])];
                     $wp_product['type'] = 'variable';
-                    $wp_product['manage_stock'] = $product['listing']['is_purchasable'];
-                    $wp_product['attributes'] = $this->getProductOptions($product);
                     $this->createOrUpdateProductVariant($product,$newProduct);
                     echo ('Updated:'.$product['listing']['name']."\r\n");
                     if($product['listing']['is_purchasable']){
@@ -88,7 +86,6 @@ class Zenegal_API_Client
                         'name' => $product['listing']['name'],
                         'type' => 'variable',
                         'purchasable' =>   $product['listing']['is_purchasable'] ,
-                        'manage_stock' => $product['listing']['is_purchasable'],
                         'description' => $product['listing']['name'],
                         'short_description' => $product['listing']['name'],
                         'categories' => [
@@ -96,7 +93,6 @@ class Zenegal_API_Client
                                 'id' => $category['id']
                             ]
                         ],
-                        'attributes' =>  $this->getProductOptions($product),
                         'images' => [$this->setImageURI($product['listing']['image'],$product['listing']['name'])],
                         'stock_status' => $product['listing']['stock_status']['code'] == 'in_stock' ? 'instock' : 'outofstock',
                         'slug' => $product['listing']['slug'],
@@ -140,7 +136,8 @@ class Zenegal_API_Client
             $value = explode('-',$variant['name']);
             $data = [
                 'name' => $variant['name'],
-                'image' => [$this->setImageURI($variant['image'],$variant['name'])],
+                'images' =>  [
+                    'src'      => $this->setImageURI($variant['image'],$variant['name'])],
                 'purchasable' => $variant['is_purchasable']  ? true : false,
                 'stock_status' =>  $variant['is_purchasable']  ? 'instock' : 'outofstock',
                 "visible" => true,
@@ -161,7 +158,6 @@ class Zenegal_API_Client
                    if($variant['is_purchasable']){
                        echo 'available:'.  $wp_product['name'].',Variant:'. $variant['name']." updated\r\n";
                    }
-                    echo  $wp_product['name'].',Variant:'. $variant['name']." updated\r\n";
                     $this->wc_api->post('products/'.$wp_product['id'].'/variations',$data);
                }catch(\Exception $e){
                    echo ($e->getMessage()."\r\n");
@@ -216,6 +212,7 @@ class Zenegal_API_Client
         $total_pages =  $contents['pages'];
         $products =  $contents['data'];
         $page = 1;
+        sleep(2);
         do{
             $total_pages -= 1;
             $page += 1;
@@ -223,7 +220,7 @@ class Zenegal_API_Client
             $contents = (string) $results->getBody();
             $newProducts = (array) json_decode($contents, true)['data'];
             $products = array_merge($products,$newProducts);
-
+            sleep(2);
         }while ($total_pages > 1);
         return $products;
        }catch(\Exception $e){

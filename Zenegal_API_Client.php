@@ -78,13 +78,13 @@ class Zenegal_API_Client
                     $wp_product['stock_status'] =  $product['listing']['stock_status']['code'] =='in_stock' ? 'instock' : 'outofstock';
                     $wp_product['purchasable'] =   $product['listing']['is_purchasable'] ;
                     $wp_product['slug'] =  $product['listing']['slug'];
+                    $wp_product['attributes'] = $this->getProductOptions($product);
                     $wp_product['images'] = [$this->setImageURI( $product['listing']['image'],$product['listing']['name'])];
                     $wp_product['type'] = 'variable';
+                    $this->wc_api->put('products/'.$newProduct['id'], $wp_product);
+                    sleep(2);
                     $this->createOrUpdateProductVariant($product,$newProduct);
                     echo ('Updated:'.$product['listing']['name']."\r\n");
-                    if($product['listing']['is_purchasable']){
-                        echo 'available for purchas'. $wp_product['name'];
-                    }
                 } else {
                     $data = [
                         'name' => $product['listing']['name'],
@@ -97,13 +97,14 @@ class Zenegal_API_Client
                                 'id' => $category['id']
                             ]
                         ],
+                        'attributes' => $this->getProductOptions($product),
                         'images' => [$this->setImageURI($product['listing']['image'],$product['listing']['name'])],
                         'stock_status' => $product['listing']['stock_status']['code'] == 'in_stock' ? 'instock' : 'outofstock',
                         'slug' => $product['listing']['slug'],
                         ];
                         
-                        $data = $this->wc_api->post('products', $data);
-                        $this->createOrUpdateProductVariant($product,$data);
+                        $newProduct = $this->wc_api->post('products', $data);
+                        $this->createOrUpdateProductVariant($product,$newProduct);
                         echo ('Imported:'.$product['listing']['name']."\r\n");
                 }
             }
@@ -118,6 +119,7 @@ class Zenegal_API_Client
             "options" => []
         ];
         $attributes =  $this->http->post('products/'.$product['listing']['store_based_id'].'/options',$data);
+        sleep(2);
         $attributes = (string) $attributes->getBody();
         $attributes =  (array) json_decode($attributes, true)['options'];
 
@@ -140,45 +142,29 @@ class Zenegal_API_Client
             $value = explode('-',$variant['name']);
             $data = [
                 'name' => $variant['name'],
-                'images' =>  [
-                    'src'      => $this->setImageURI($variant['image'],$variant['name'])],
+                'images' =>   [$this->setImageURI($variant['image'],$variant['name'])],
                 'purchasable' => $variant['is_purchasable']  ? true : false,
                 'stock_status' =>  $variant['is_purchasable']  ? 'instock' : 'outofstock',
                 "visible" => true,
                 'attributes'    => [
-                    [
-                        'name'     => 'Colour',
-                        'option'=> trim($value[1]),
-                        'visible' => true
-                    ],
-                    [
-                        'name'     => 'Size',
-                        'option'=> trim($value[0]),
-                        'visible' => true 
-                    ],
-                ],
+                        [
+                            'name'     => 'Colour',
+                            'option'=> trim($value[1]),
+                            'visible' => true
+                        ],
+                        [
+                            'name'     => 'Size',
+                            'option'=> trim($value[0]),
+                            'visible' => true 
+                        ],
+                    ]
                 ];
                try{
-                   if($variant['is_purchasable']){
-                       echo 'available:'.  $wp_product['name'].',Variant:'. $variant['name']." updated\r\n";
-                   }
                     $this->wc_api->post('products/'.$wp_product['id'].'/variations',$data);
                }catch(\Exception $e){
                    echo ($e->getMessage()."\r\n");
-                   echo $variant['regular_price'];
-               }
-        }  
-    }
-
-    public function getProductVariant($product){
-        try {
-            $variants =  $this->wc_api->get('products/'.$product['id']);//$this->wc_api->get('products/'.$product['id'].'/variations');
-            // var_dump($variants['variations']);
-            if(count($variants) > 0){
-                var_dump($variants);
             }
-        } catch (\Exception $e) {
-        }
+        }  
     }
 
     public function getAttributeId($slug)
@@ -202,6 +188,7 @@ class Zenegal_API_Client
                 'src' => $images ?  $this->cdn.$images['original'] : '' ,
                 'name' => $name
         ];
+        sleep(2);
         return $new_images;
     }
 

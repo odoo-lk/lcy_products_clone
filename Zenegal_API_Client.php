@@ -1,24 +1,25 @@
 <?php
-require __DIR__.'vendor/autoload.php';
+require  __DIR__.'/vendor/autoload.php';
 use Automattic\WooCommerce\Client as Wooclient;
 
 class Zenegal_API_Client
 {
 
-    public function fetchCategories()
+
+    public function __construct()
     {
         $this->http = new GuzzleHttp\Client([
-            'base_uri' => 'https://api.zenegal.store/v1/',
+            'base_uri' => getenv('REMOTE_API'),
             'headers' => [
-                'X-API-KEY' => ''
+                'X-API-KEY' => getenv('REMOTE_SECRET_KEY')
             ]
 
         ]);
 
         $this->wc_api = new Wooclient(
-            'http://localhost:8080/',
-            'ck_d68be466a422492390ae42f11b59f7e1eea966dd',
-            'cs_4e12c7023c862156d2c8c67f320218581bd4616c',
+            getenv('WP_SERVER'),
+            getenv('WP_CLIENT_KEY'),
+            getenv('WP_CLIENT_SECRET'),
             [
                 'wp_api' => true,
                 'version' => 'wc/v3',
@@ -28,6 +29,13 @@ class Zenegal_API_Client
             ],
 
         );
+
+        $this->cdn = 'https://cdn.zenegal.store';
+        
+    }
+
+    public function fetchCategories()
+    {
         try {
             $response = $this->http->get('categories');
             $contents = (string) $response->getBody();
@@ -51,40 +59,21 @@ class Zenegal_API_Client
         return json_encode($item['id']);
     }
 
-    public function testFetchProducts()
+    public function fetchProducts()
     {
-        $this->http = new GuzzleHttp\Client([
-            'base_uri' => '',
-            'headers' => [
-                'X-API-KEY' => ''
-            ]
-        ]);
-
-        $this->wc_api = new Wooclient(
-            'http://localhost:8080/',
-            'ck_d68be466a422492390ae42f11b59f7e1eea966dd',
-            'cs_4e12c7023c862156d2c8c67f320218581bd4616c',
-            [
-                'wp_api' => true,
-                'version' => 'wc/v2'
-            ],
-
-        );
         try {
             $contents = $this->getAllProducts(1);
             $contents = array_merge($contents,$this->getAllProducts(2)) ;
             $contents = array_merge($contents,$this->getAllProducts(3)) ;
-            echo ('Total products:'. count($contents)."\r\n");
+            echo ('Total products to import:'. count($contents)."\r\n");
             foreach ($contents as $product) {
-                $newProduct = $this->getProduct($product);
-                sleep(2);
                 $category = $this->getCategoryId($product);
+                $newProduct = $this->getProduct($product);
                 if (!is_null($newProduct)) {       
                     $wp_product['stock_status'] =  $product['listing']['stock_status']['code'] === 'in_stock' ? 'in_stock' : 'outofstock';
                     $wp_product['slug'] =  $product['listing']['slug'];
-                    $wp_product['images'] = $this->setImageURI( $product['listing']['image'],$product['listing']['name']);
+                    $wp_product['images'] = [$this->setImageURI( $product['listing']['image'],$product['listing']['name'])];
                     echo ('Updated:'.$product['listing']['name']."\r\n");
-                    $this->wc_api->put('products/' .$newProduct['id'], $wp_product);
                 } else {
                     $data = [
                         'name' => $product['listing']['name'],
@@ -96,12 +85,12 @@ class Zenegal_API_Client
                                 'id' => $category['id']
                             ]
                         ],
-                        'image' => $this->setImageURI( $product['listing']['image'],$product['listing']['name']),
+                        'images' => [$this->setImageURI($product['listing']['image'],$product['listing']['name'])],
                         'stock_status' => $product['listing']['stock_status']['code'] === 'in_stock' ? 'instock' : 'outofstock',
-                        'slug' => $product['listing']['slug']
+                        'slug' => $product['listing']['slug'],
                         ];
-                    $this->wc_api->post('products', $data);
-                    echo ('Imported:'.$product['listing']['name']."\r\n");
+                        $this->wc_api->post('products', $data);
+                        echo ('Imported:'.$product['listing']['name']."\r\n");
                 }
             }
         } catch (\Exception $e) {
@@ -110,13 +99,9 @@ class Zenegal_API_Client
     }  
 
     public function setImageURI($images,$name){
-        $base = 'https://cdn.zenegal.store';
-
         $new_images = [
-            [
-                'src' => $base.$images['original'],
+                'src' => $this->cdn.$images['original'],
                 'name' => $name
-            ]
         ];
         return $new_images;
     }
@@ -149,30 +134,15 @@ class Zenegal_API_Client
 
     public function getProduct($wp_product)
     {
-        $this->wc_api = new Wooclient(
-            'http://localhost:8080/',
-            'ck_d68be466a422492390ae42f11b59f7e1eea966dd',
-            'cs_4e12c7023c862156d2c8c67f320218581bd4616c',
-            [
-                'wp_api' => true,
-                'version' => 'wc/v3'
-            ],
-        );
         try {
-            $products = $this->wc_api->get('products/'.$wp_product['listing']['store_based_id']);
-
-            if(is_null($products) || $products == []){
-                $products = $this->wc_api->get('products/search?',['slug' => $wp_product['listing']['slug']]);
+                $products = $this->wc_api->get('products',['slug' =>  $wp_product['listing']['slug']]);
                 foreach($products as $product){
                     if($product['slug'] == $wp_product['listing']['slug']){
                         return $product;
                     }
                 }
-            }else{
-                return $products;
-            }
         } catch (\Exception $e) {
-            return null;
+            var_dump($e->getMessage());
         }
     }
 
@@ -180,19 +150,7 @@ class Zenegal_API_Client
     {
         try {
             $category = null;
-            $this->wc_api = new Wooclient(
-                'http://localhost:8080/',
-                'ck_d68be466a422492390ae42f11b59f7e1eea966dd',
-                'cs_4e12c7023c862156d2c8c67f320218581bd4616c',
-                [
-                    'wp_api' => true,
-                    'version' => 'wc/v2'
-                ],
-
-            );
-
             $categories = $this->wc_api->get('products/categories');
-
             foreach ($categories as $key => $category) {
                 if ($category['slug'] ==  $this->setCategory($product['listing']['category']['slug'])) {
                     $category = $category;
@@ -222,4 +180,4 @@ class Zenegal_API_Client
 
 
 $import = new Zenegal_API_Client();
-$import->testFetchProducts();
+$import->fetchProducts();

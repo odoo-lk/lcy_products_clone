@@ -70,7 +70,7 @@ class Zenegal_API_Client
             $contents = array_merge($contents, $this->getAllProducts(2));
             $contents = array_merge($contents, $this->getAllProducts(3));
             echo ('Total products to import:' . count($contents) . "\r\n");
-            $this->processParallel(array($this, 'process'), $contents, 10);
+            $this->processParallel(array($this, 'process'), $contents, 5);
         } catch (\Exception $e) {
             var_dump($e->getMessage());
         }

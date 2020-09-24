@@ -161,10 +161,6 @@ class Zenegal_API_Client
                 ]
             ];
 
-            if(!empty($this->setImageURI($variant['image'], $variant['name']))){
-                $data['image'] = $this->setImageURI($variant['image'], $variant['name']);
-            }
-
             if (count($value) == 2) {
                 $data['attributes'][] =  [
                     'name'     => 'Colour',
@@ -174,6 +170,9 @@ class Zenegal_API_Client
             }
             try {
                 if (!$check) {
+                    if(!empty($this->setImageURI($variant['image'], $variant['name']))){
+                        $data['image'] = $this->setImageURI($variant['image'], $variant['name']);
+                    }
                     $this->wc_api->post('products/' . $wp_product['id'] . '/variations', $data);
                     echo 'created variant: '.$slug . ' Product : '. $wp_product['name'] . "\r\n";
                 } else {

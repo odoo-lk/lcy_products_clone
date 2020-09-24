@@ -343,4 +343,5 @@ class Zenegal_API_Client
 
 
 $import = new Zenegal_API_Client();
+$import->fetchCategories();
 $import->fetchProducts();

@@ -85,7 +85,6 @@ class Zenegal_API_Client
             $wp_product['purchasable'] =   $product['listing']['is_purchasable'];
             $wp_product['slug'] =  $product['listing']['slug'];
             $wp_product['attributes'] = $this->getProductOptions($product);
-            $wp_product['images'] = [$this->setImageURI($product['listing']['image'], $product['listing']['name'])];
             $wp_product['type'] = 'variable';
             $this->wc_api->put('products/' . $newProduct['id'], $wp_product);
             sleep(2);

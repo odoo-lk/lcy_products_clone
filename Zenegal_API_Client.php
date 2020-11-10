@@ -78,39 +78,43 @@ class Zenegal_API_Client
 
     public function process($product)
     {
-        $category = $this->getCategoryId($product);
-        $newProduct = $this->getProduct($product);
-        if (!is_null($newProduct)) {
-            $wp_product['stock_status'] =  $product['listing']['stock_status']['code'] == 'in_stock' ? 'instock' : 'outofstock';
-            $wp_product['purchasable'] =   $product['listing']['is_purchasable'];
-            $wp_product['slug'] =  $product['listing']['slug'];
-            $wp_product['attributes'] = $this->getProductOptions($product);
-            $wp_product['type'] = 'variable';
-            $this->wc_api->put('products/' . $newProduct['id'], $wp_product);
-            sleep(2);
-            $this->createOrUpdateProductVariant($product, $newProduct);
-            echo ('Updated:' . $product['listing']['name'] . "\r\n");
-        } else {
-            $data = [
-                'name' => $product['listing']['name'],
-                'type' => 'variable',
-                'purchasable' =>   $product['listing']['is_purchasable'],
-                'description' => $product['listing']['name'],
-                'short_description' => $product['listing']['name'],
-                'categories' => [
-                    [
-                        'id' => $category['id']
-                    ]
-                ],
-                'attributes' => $this->getProductOptions($product),
-                'images' => [$this->setImageURI($product['listing']['image'], $product['listing']['name'])],
-                'stock_status' => $product['listing']['stock_status']['code'] == 'in_stock' ? 'instock' : 'outofstock',
-                'slug' => $product['listing']['slug'],
-            ];
+        try {
+            $category = $this->getCategoryId($product);
+            $newProduct = $this->getProduct($product);
+            if (!is_null($newProduct)) {
+                $wp_product['stock_status'] =  $product['listing']['stock_status']['code'] == 'in_stock' ? 'instock' : 'outofstock';
+                $wp_product['purchasable'] =   $product['listing']['is_purchasable'];
+                $wp_product['slug'] =  $product['listing']['slug'];
+                $wp_product['attributes'] = $this->getProductOptions($product);
+                $wp_product['type'] = 'variable';
+                $this->wc_api->put('products/' . $newProduct['id'], $wp_product);
+                sleep(2);
+                $this->createOrUpdateProductVariant($product, $newProduct);
+                echo ('Updated:' . $product['listing']['name'] . "\r\n");
+            } else {
+                $data = [
+                    'name' => $product['listing']['name'],
+                    'type' => 'variable',
+                    'purchasable' =>   $product['listing']['is_purchasable'],
+                    'description' => $product['listing']['name'],
+                    'short_description' => $product['listing']['name'],
+                    'categories' => [
+                        [
+                            'id' => $category['id']
+                        ]
+                    ],
+                    'attributes' => $this->getProductOptions($product),
+                    'images' => [$this->setImageURI($product['listing']['image'], $product['listing']['name'])],
+                    'stock_status' => $product['listing']['stock_status']['code'] == 'in_stock' ? 'instock' : 'outofstock',
+                    'slug' => $product['listing']['slug'],
+                ];
 
-            $newProduct = $this->wc_api->post('products', $data);
-            $this->createOrUpdateProductVariant($product, $newProduct);
-            echo ('Imported:' . $product['listing']['name'] . "\r\n");
+                $newProduct = $this->wc_api->post('products', $data);
+                $this->createOrUpdateProductVariant($product, $newProduct);
+                echo ('Imported:' . $product['listing']['name'] . "\r\n");
+            }
+        } catch (\Exception $e) {
+            var_dump($e);
         }
     }
 
@@ -141,13 +145,13 @@ class Zenegal_API_Client
     {
         foreach ($product['details']['variants'] as $variant) {
             $value = explode('-', $variant['name']);
-            $slug = $wp_product['slug'].'-'.$this->slugify($variant['name']);
-            $check =  $this->wc_api->get('products/' . $wp_product['id'] . '/variations',['sku' => $slug]);  
+            $slug = $wp_product['slug'] . '-' . $this->slugify($variant['name']);
+            $check =  $this->wc_api->get('products/' . $wp_product['id'] . '/variations', ['sku' => $slug]);
             $data = [
                 'name' => $variant['name'],
                 'description' => $variant['name'],
-                'slug' => $slug ,
-                'sku' =>  $slug ,
+                'slug' => $slug,
+                'sku' =>  $slug,
                 'purchasable' => $variant['is_purchasable']  ? true : false,
                 'stock_status' =>  $variant['is_purchasable']  ? 'instock' : 'outofstock',
                 "visible" => true,
@@ -169,18 +173,17 @@ class Zenegal_API_Client
             }
             try {
                 if (!$check) {
-                    if(!empty($this->setImageURI($variant['image'], $variant['name']))){
+                    if (!empty($this->setImageURI($variant['image'], $variant['name']))) {
                         $data['image'] = $this->setImageURI($variant['image'], $variant['name']);
                     }
                     $this->wc_api->post('products/' . $wp_product['id'] . '/variations', $data);
-                    echo 'created variant: '.$slug . ' Product : '. $wp_product['name'] . "\r\n";
+                    echo 'created variant: ' . $slug . ' Product : ' . $wp_product['name'] . "\r\n";
                 } else {
-                    $this->wc_api->put('products/' . $wp_product['id'] . '/variations/'.$check[0]['id'], $data);
-                    echo 'updated variant: '. $slug. ' Product : '. $wp_product['name'] . "\r\n";
-
+                    $this->wc_api->put('products/' . $wp_product['id'] . '/variations/' . $check[0]['id'], $data);
+                    echo 'updated variant: ' . $slug . ' Product : ' . $wp_product['name'] . "\r\n";
                 }
             } catch (\Throwable $th) {
-               var_dump($th->getMessage());
+                var_dump($th->getMessage());
             }
         }
     }
@@ -203,39 +206,39 @@ class Zenegal_API_Client
 
     public  function slugify($text)
     {
-      // replace non letter or digits by -
-      $text = preg_replace('~[^\pL\d]+~u', '-', $text);
-    
-      // transliterate
-      $text = iconv('utf-8', 'us-ascii//TRANSLIT', $text);
-    
-      // remove unwanted characters
-      $text = preg_replace('~[^-\w]+~', '', $text);
-    
-      // trim
-      $text = trim($text, '-');
-    
-      // remove duplicate -
-      $text = preg_replace('~-+~', '-', $text);
-    
-      // lowercase
-      $text = strtolower($text);
-    
-      if (empty($text)) {
-        return 'n-a';
-      }
-    
-      return $text;
+        // replace non letter or digits by -
+        $text = preg_replace('~[^\pL\d]+~u', '-', $text);
+
+        // transliterate
+        $text = iconv('utf-8', 'us-ascii//TRANSLIT', $text);
+
+        // remove unwanted characters
+        $text = preg_replace('~[^-\w]+~', '', $text);
+
+        // trim
+        $text = trim($text, '-');
+
+        // remove duplicate -
+        $text = preg_replace('~-+~', '-', $text);
+
+        // lowercase
+        $text = strtolower($text);
+
+        if (empty($text)) {
+            return 'n-a';
+        }
+
+        return $text;
     }
 
     public function setImageURI($images, $name)
     {
         $new_images = array();
-         if(!empty($images)){
+        if (!empty($images)) {
             $new_images = [
-                'src' => $images ?  $this->cdn.$images['original'] : ''
+                'src' => $images ?  $this->cdn . $images['original'] : ''
             ];
-         }
+        }
         return $new_images;
     }
 

@@ -70,7 +70,9 @@ class Zenegal_API_Client
             $contents = array_merge($contents, $this->getAllProducts(2));
             $contents = array_merge($contents, $this->getAllProducts(3));
             echo ('Total products to import:' . count($contents) . "\r\n");
-            $this->processParallel(array($this, 'process'), $contents, 5);
+            $func = array($this, 'process');
+            array_walk($content,$func);
+            // $this->processParallel(, $contents, 5);
         } catch (\Exception $e) {
             var_dump($e->getMessage());
         }
@@ -327,12 +329,12 @@ class Zenegal_API_Client
                 die('could not fork');
             } else if ($pid === 0) {
                 // We are the child process. Pass a chunk of items to process.
-                echo ('[' . getmypid() . ']This Process executed at' . date("F d, Y h:i:s A") . "\n");
+                //echo ('[' . getmypid() . ']This Process executed at' . date("F d, Y h:i:s A") . "\n");
                 array_walk($items, $func, $params);
                 exit(0);
             } else {
                 // We are the parent.
-                echo ('[' . getmypid() . ']This Process executed at' . date("F d, Y h:i:s A") . "\n");
+              //  echo ('[' . getmypid() . ']This Process executed at' . date("F d, Y h:i:s A") . "\n");
                 $children[] = $pid;
             }
         }

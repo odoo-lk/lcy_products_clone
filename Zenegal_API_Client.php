@@ -109,8 +109,10 @@ class Zenegal_API_Client
                     'stock_status' => $product['listing']['stock_status']['code'] == 'in_stock' ? 'instock' : 'outofstock',
                     'slug' => $product['listing']['slug'],
                 ];
-                if(!is_null(($product['listing']['image']))){
-                    $data['images'] = [$this->setImageURI($product['listing']['image'], $product['listing']['name'])];
+
+                $image = $this->setImageURI($product['listing']['image'],$product['listing']['name']);
+                if(count($image)>0){
+                    $data['images'] = [$image];
                 }
 
                 $newProduct = $this->wc_api->post('products', $data);
